@@ -1,0 +1,94 @@
+import numpy as np
+import os
+import cv2
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+# Set the path to the dataset
+DATASET_PATH = "path/to/dataset"
+
+# Define the image size
+IMG_SIZE = 224
+
+# Define the number of classes
+NUM_CLASSES = 2
+
+# Define the batch size
+BATCH_SIZE = 32
+
+# Define the number of epochs
+NUM_EPOCHS = 10
+
+# Define the list of classes
+CLASS_LIST = ["benign", "malignant"]
+
+# Load the dataset
+def load_dataset():
+    # Initialize the lists for storing the images and labels
+    images = []
+    labels = []
+    
+    # Iterate through the class list
+    for class_idx, class_name in enumerate(CLASS_LIST):
+        # Get the path to the class directory
+        class_path = os.path.join(DATASET_PATH, class_name)
+        
+        # Iterate through the images in the class directory
+        for img_name in os.listdir(class_path):
+            # Load the image
+            img_path = os.path.join(class_path, img_name)
+            img = cv2.imread(img_path)
+            img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+            
+            # Add the image and label to the lists
+            images.append(img)
+            labels.append(class_idx)
+    
+    # Convert the lists to numpy arrays
+    images = np.array(images)
+    labels = np.array(labels)
+    
+    # Shuffle the dataset
+    images, labels = shuffle(images, labels)
+    
+    # Split the dataset into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(images, labels, test_size=0.2, random_state=42)
+    
+    return X_train, X_test, y_train, y_test
+
+# Define the CNN model
+def cnn_model():
+    model = Sequential()
+    model.add(Conv2D(32, (3, 3), activation="relu", input_shape=(IMG_SIZE, IMG_SIZE, 3)))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Conv2D(64, (3, 3), activation="relu"))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Conv2D(128, (3, 3), activation="relu"))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    model.add(Dense(128, activation="relu"))
+    model.add(Dropout(0.5))
+    model.add(Dense(NUM_CLASSES, activation="softmax"))
+    return model
+
+# Load the dataset
+X_train, X_test, y_train, y_test = load_dataset()
+
+# Normalize the pixel values
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+# Create the CNN model
+model = cnn_model()
+
+# Compile the model
+model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+# Train the model
+model.fit(X_train, y_train, batch_size=BATCH_SIZE, epochs=NUM_EPOCHS, validation_data=(X_test, y_test))
+
+# Evaluate the model on the test set
+test_loss, test_acc = model.evaluate(X_test, y_test, verbose=2)
+print("Test accuracy:", test_acc)
